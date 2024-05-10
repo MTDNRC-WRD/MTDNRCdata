@@ -1,0 +1,47 @@
+[URLs]
+LOCS_SPATIAL_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
+LOCATIONS_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
+LOCATIONDATA_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/4/query'
+TIMESERIES_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/2/query'
+
+[DATASET_INFO]
+AVAILABLE_DATASETS = ['QR', 'HG', 'TW', 'Wat_LVL_BLSD', 'Lake_Elev_NGVD', 'LS']
+STATUS_TYPES = ['Real-Time', 'Seasonal', 'FWP', 'Discontinued', 'Reservoir']
+INSTANTANEOUS_ONLY = ['Wat_LVL_BLSD', 'Lake_Elev_NGVD', 'LS']
+LOCATION_FIELDS = [
+    'LocationCode',
+    'LocationID',
+    'LocationName',
+    'LocationType',
+    'Longitude',
+    'Latitude',
+    'Elevation',
+    'ElevationUnits',
+    'Description',
+    'SensorCode',
+    'SensorID',
+    'SensorLabel',
+    'TimeSeriesType',
+    'DatasetUtcOffset',
+    'Parameter',
+    'ParameterLabel',
+    'UnitOfMeasure',
+    'ComputationMethod',
+    'ComputationPeriod',
+    'CountyName',
+    'BasinName',
+    'HUC8Code',
+    'StatusDesc'
+]
+TIMESERIES_FIELDS = [
+    'Timestamp',
+    'RecordedValue',
+    'GradeCode',
+    'GradeName',
+    'Method',
+    'ApprovalLevel',
+    'ApprovalName'
+]
+
+[API_SETTINGS]
+DEFAULT_RETURN_FORMAT = 'pjson'

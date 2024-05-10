@@ -17,60 +17,21 @@ from tzlocal import get_localzone
 import pytz
 
 from MTDNRCdata import utilities
-
-#TODO move all hard-coded url's and references to config file
-
-# Layer Endpoints
-LOCS_SPATIAL_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
-# Table Endpoints
-LOCATIONS_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
-LOCATIONDATA_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/4/query'
-TIMESERIES_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/2/query'
-FORMAT = 'pjson'
-LOCATION_FIELDS = [
-    'LocationCode',
-    'LocationID',
-    'LocationName',
-    'LocationType',
-    'Longitude',
-    'Latitude',
-    'Elevation',
-    'ElevationUnits',
-    'Description',
-    'SensorCode',
-    'SensorID',
-    'SensorLabel',
-    'TimeSeriesType',
-    'DatasetUtcOffset',
-    'Parameter',
-    'ParameterLabel',
-    'UnitOfMeasure',
-    'ComputationMethod',
-    'ComputationPeriod',
-    'CountyName',
-    'BasinName',
-    'HUC8Code',
-    'StatusDesc'
-]
-
-TIMESERIES_FIELDS = [
-    'Timestamp',
-    'RecordedValue',
-    'GradeCode',
-    'GradeName',
-    'Method',
-    'ApprovalLevel',
-    'ApprovalName'
-]
-
-AVAILABLE_DATASETS = ['QR', 'HG', 'TW', 'Wat_LVL_BLSD', 'Lake_Elev_NGVD', 'LS']
+from config import LOCATIONS_URL
+from config import LOCATIONDATA_URL
+from config import TIMESERIES_URL
+from config import AVAILABLE_DATASETS
+from config import STATUS_TYPES
+from config import INST_ONLY
+from config import LOCATION_FIELDS
+from config import TIMESERIES_FIELDS
+from config import FORMAT
 
 
 def site_list():
-    status_type = ['Real-Time', 'Seasonal', 'FWP', 'Discontinued', 'Reservoir']
     siteoutfields = ['LocationCode', 'LocationName', 'StatusDesc']
     responses = []
-    for i in status_type:
+    for i in STATUS_TYPES:
         payload = {
             'where': "StatusDesc='{0}'".format(i),
             'outFields': ','.join(siteoutfields),
@@ -178,7 +139,6 @@ class GetSite(object):
         return FDF
 
     def _get_timeseries(self):
-        INST_ONLY = ['Wat_LVL_BLSD', 'Lake_Elev_NGVD', 'LS']
         sites = []
         paramCodes = []
         data_labels = []
@@ -319,6 +279,8 @@ class GetSite(object):
                 #DF.set_index(fn_dts, inplace=True)
                 DF['Datetime'] = fn_dts
                 DF.drop('Timestamp', axis=1, inplace=True)
+                DF.sort_values(by='Datetime', inplace=True)
+                DF.reset_index(drop=True, inplace=True)
             elif self._data_timestep == 'daily' and paramCodes[i] in INST_ONLY:
                 TSunxdts = (DF['Timestamp'] / 1000)
                 TSdts = pd.to_datetime(TSunxdts, unit='s')
@@ -332,6 +294,8 @@ class GetSite(object):
                 DF.reset_index(inplace=True)
                 DF.drop('Timestamp', axis=1, inplace=True)
                 DF.drop('Datetime', axis=1, inplace=True)
+                DF.sort_values(by='Date', inplace=True)
+                DF.reset_index(drop=True, inplace=True)
             elif self._data_timestep == 'daily' and paramCodes[i] not in INST_ONLY:
                 TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
                 dtind = pd.DatetimeIndex(TSdts)
@@ -340,6 +304,8 @@ class GetSite(object):
                 #TSdata.set_index(fn_dts, inplace=True)
                 DF['Date'] = fn_dts
                 DF.drop('Timestamp', axis=1, inplace=True)
+                DF.sort_values(by='Date', inplace=True)
+                DF.reset_index(drop=True, inplace=True)
             else:
                 print("Timestamps could not be re-formatted.")
                 pass

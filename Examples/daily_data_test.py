@@ -17,8 +17,7 @@ for index, row in sites.iterrows():
         # If Daily Discharge is available, extract data for that site ID, otherwise skip it
         if 'Discharge Daily' in list(p['attributes.ParameterLabel'] + ' ' + p['attributes.ComputationPeriod']):
             location = GetSite(row['attributes.LocationCode'], timestep='daily', dataset='QR', start='1900-01-01', end='2024-05-08')
-            data = location.data.sort_values(by='Date')
-            data.drop_duplicates(subset='Date', inplace=True)
+            data = location.data.drop_duplicates(subset='Date', inplace=True)
             site_data.append(data[['Date', 'RecordedValue', 'SiteID']])
         # Try different query for improperly labeled parameters
         elif 'Discharge.Daily Average' in str(p['attributes.SensorCode']):
@@ -26,7 +25,6 @@ for index, row in sites.iterrows():
                                end='2024-05-08')
             data = location.data
             data.rename(columns={'Datetime': 'Date'}, inplace=True)
-            data = data.sort_values(by='Date')
             data.drop_duplicates(subset='Date', inplace=True)
             site_data.append(data[['Date', 'RecordedValue', 'SiteID']])
         else:
