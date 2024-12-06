@@ -177,7 +177,7 @@ class GetSite(object):
                 if isinstance(self._dset, list):
                     # TODO - Check to see if self._dset list has all valid entries
                     # TODO - Some historic discontinued sites do not have correct ComputationPeriod Parameter, need
-                    #   a work around to select based on Sensor Code? DON'T USE 'ComputationPeriod' instead use
+                    #   to change selection to be based on Sensor Code? DON'T USE 'ComputationPeriod' instead use
                     #   if i['attributes']['SensorLabel'] == 'Daily Average' when self._data_timestep == 'daily'
                     if self._data_timestep == 'instant':
                         if i['attributes']['Parameter'] in self._dset and i['attributes']['ComputationPeriod'] == 'Unknown':
