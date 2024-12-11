@@ -14,6 +14,7 @@ To do:
 import requests
 import pandas as pd
 from tzlocal import get_localzone
+import numpy as np
 import pytz
 
 from MTDNRCdata import utilities
@@ -241,11 +242,14 @@ class GetSite(object):
                             loc_index.append(n)
                 else:
                     print("Dataset argument is neither list nor string.")
-
+        # TODO - change this so instead of looping through sensor list, query webservice with an 'IN' statement
+        #   will require creating string list compatible with the webservice query ('1', '2', 'x'), then will have to sort out
+        #   the response based on the SensorID
         TSdata_lst = []
         for i, snsr in enumerate(sensor_lst):
             # Need to add logic for dealing with dates for each get request
-            # Also need to separate instant only datasets and calculate end of day values
+            # TODO - here is probably the best place to split instantaneous requests into chunks <= 10000, then loop
+            #   through chunks and use ._format_time_inputs() for each chunk
             time_qry = self._format_time_inputs()
             payload = {'where': "SensorID='{0}'".format(snsr),
                             'outFields': ','.join(TIMESERIES_FIELDS),
@@ -269,6 +273,7 @@ class GetSite(object):
             DF['DatasetCode'] = paramCodes[i]
             DF['DatasetLabel'] = data_labels[i]
 
+            # TODO - alter all conditionals to deal with duplicates and return Datetime as index
             if self._data_timestep == 'instant':
                 TSunxdts = (DF['Timestamp'] / 1000)
                 TSdts = pd.to_datetime(TSunxdts, unit='s')
@@ -299,13 +304,15 @@ class GetSite(object):
             elif self._data_timestep == 'daily' and paramCodes[i] not in INST_ONLY:
                 TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
                 dtind = pd.DatetimeIndex(TSdts)
-                fn_dts = dtind.strftime('%Y-%m-%d')
-                #fn_dts.rename('Date', inplace=True)
-                #TSdata.set_index(fn_dts, inplace=True)
-                DF['Date'] = fn_dts
+                DF.index = dtind
                 DF.drop('Timestamp', axis=1, inplace=True)
-                DF.sort_values(by='Date', inplace=True)
-                DF.reset_index(drop=True, inplace=True)
+                DF.sort_index(inplace=True)
+                DF = DF[~DF.index.duplicated(keep='last')]
+                DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max()))
+                DF.index.name = 'Date'
+                DF['SiteID'] = DF['SiteID'].ffill()
+                DF['DatasetCode'] = DF['DatasetCode'].ffill()
+                DF['DatasetLabel'] = DF['DatasetLabel'].ffill()
             else:
                 print("Timestamps could not be re-formatted.")
                 pass
