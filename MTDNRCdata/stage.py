@@ -73,7 +73,7 @@ def get_sites_geojson(bbox=[-116.5, 42.5, -103, 49.5]):
         req_url = "https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/0/query?where=&text=&" \
                   "objectIds=&time=&timeRelation=esriTimeRelationOverlaps&geometry={0}%2C+{1}%2C+{2}%2C+{3}&" \
                   "geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&distance=&" \
-                  "units=esriSRUnit_Foot&relationParam=&outFields=LocationCode%2C+ObjectID&returnGeometry=true&" \
+                  "units=esriSRUnit_Foot&relationParam=&outFields=LocationCode%2C+LocationName%2C+ObjectID%2C+StatusDesc&returnGeometry=true&" \
                   "returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&havingClause=&" \
                   "returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&" \
                   "outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&" \
@@ -275,20 +275,27 @@ class GetSite(object):
 
             # TODO - alter all conditionals to deal with duplicates and return Datetime as index
             if self._data_timestep == 'instant':
-                TSunxdts = (DF['Timestamp'] / 1000)
-                TSdts = pd.to_datetime(TSunxdts, unit='s')
+                TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
                 dtind = pd.DatetimeIndex(TSdts)
-                dts_local = dtind.tz_localize('US/Mountain')
-                fn_dts = dts_local.tz_convert(get_localzone())
+                #dts_local = dtind.tz_localize('US/Mountain', ambiguous='infer')
+                dts_local = dtind.tz_localize('etc/GMT+7', ambiguous='infer')
+                #fn_dts = dts_local.tz_convert(get_localzone())
                 #fn_dts.rename('Datetime', inplace=True)
                 #DF.set_index(fn_dts, inplace=True)
-                DF['Datetime'] = fn_dts
+                DF.index = dts_local
                 DF.drop('Timestamp', axis=1, inplace=True)
-                DF.sort_values(by='Datetime', inplace=True)
-                DF.reset_index(drop=True, inplace=True)
+                DF.sort_index(inplace=True)
+                DF = DF[~DF.index.duplicated(keep='last')]
+                off = DF.index.values - np.roll(DF.index.values, 1)
+                minoff = pd.to_timedelta(off[1:]).min()
+                DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max(), freq=minoff))
+                DF.index.name = 'Datetime'
+                DF['SiteID'] = DF['SiteID'].ffill()
+                DF['DatasetCode'] = DF['DatasetCode'].ffill()
+                DF['DatasetLabel'] = DF['DatasetLabel'].ffill()
             elif self._data_timestep == 'daily' and paramCodes[i] in INST_ONLY:
                 TSunxdts = (DF['Timestamp'] / 1000)
-                TSdts = pd.to_datetime(TSunxdts, unit='s')
+                TSdts = pd.to_datetime(TSunxdts, unit='ms')
                 dtind = pd.DatetimeIndex(TSdts)
                 dts_local = dtind.tz_localize('US/Mountain')
                 fn_dts = dts_local.tz_convert(get_localzone())
@@ -304,11 +311,11 @@ class GetSite(object):
             elif self._data_timestep == 'daily' and paramCodes[i] not in INST_ONLY:
                 TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
                 dtind = pd.DatetimeIndex(TSdts)
-                DF.index = dtind
+                DF.index = dtind.normalize()
                 DF.drop('Timestamp', axis=1, inplace=True)
                 DF.sort_index(inplace=True)
                 DF = DF[~DF.index.duplicated(keep='last')]
-                DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max()))
+                DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max(), freq='D'))
                 DF.index.name = 'Date'
                 DF['SiteID'] = DF['SiteID'].ffill()
                 DF['DatasetCode'] = DF['DatasetCode'].ffill()
