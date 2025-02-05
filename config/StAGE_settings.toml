@@ -3,6 +3,9 @@ LOCS_SPATIAL_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/M
 LOCATIONS_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
 LOCATIONDATA_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/4/query'
 TIMESERIES_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/2/query'
+POD_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WRQS/FeatureServer/1'
+POU_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WRQS/FeatureServer/2'
+RESVR_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WRQS/FeatureServer/3'
 
 [DATASET_INFO]
 AVAILABLE_DATASETS = ['QR', 'HG', 'TW', 'Wat_LVL_BLSD', 'Lake_Elev_NGVD', 'LS']
