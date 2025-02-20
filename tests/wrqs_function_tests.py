@@ -111,3 +111,15 @@ out = gpd.GeoDataFrame(pd.concat(gdfs, ignore_index=True))
 out = out.set_crs(4326)
 
 out.loc[out.intersects(uygd.to_crs(4326).geometry),:]
+
+whereq = utilities.build_wrqs_where_query(
+    status='ACTIVE',
+    basin_code='76HB'
+)
+
+from MTDNRCdata.wrqs import default_query_params
+payload = default_query_params.copy()
+payload.update({'where': whereq})
+t = utilities.geojson_request_to_geodf(f"{POD_URL}/query", payload)
+
+GetWaterRights(basin_code='42B')

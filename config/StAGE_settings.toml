@@ -1,5 +1,5 @@
 [URLs]
-LOCS_SPATIAL_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
+LOCS_SPATIAL_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/0/query'
 LOCATIONS_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/1/query'
 LOCATIONDATA_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/4/query'
 TIMESERIES_URL = 'https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/2/query'

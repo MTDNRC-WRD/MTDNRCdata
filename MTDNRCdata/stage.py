@@ -13,12 +13,15 @@ To do:
 
 import requests
 import pandas as pd
+import geopandas as gpd
 from tzlocal import get_localzone
 import numpy as np
 import pytz
+from typing import Union
+from pathlib import Path
 
 from MTDNRCdata import utilities
-from config import LOCATIONS_URL
+from config import LOCATIONS_URL, LOCS_SPATIAL_URL
 from config import LOCATIONDATA_URL
 from config import TIMESERIES_URL
 from config import AVAILABLE_DATASETS
@@ -27,6 +30,34 @@ from config import INST_ONLY
 from config import LOCATION_FIELDS
 from config import TIMESERIES_FIELDS
 from config import FORMAT
+
+default_query_params={
+    'where' : "1=1",
+    'geometry': '-116.2, 44.3, -103.9, 49.1',
+    'geometryType' : 'esriGeometryEnvelope',
+    'spatialRel': 'esriSpatialRelIntersects',
+    'inSR': '4326',
+    'units': 'esriSRUnit_Foot',
+    'outFields': '*',
+    'returnGeometry': 'true',
+    'outSR': '4326',
+    'returnDistinctValues': 'false',
+    'returnIdsOnly': 'false',
+    'returnCountOnly': 'false',
+    'returnExtentOnly': 'false',
+    'returnZ': 'false',
+    'returnM': 'false',
+    'multipatchOption': 'xyFootprint',
+    'returnTrueCurves': 'false',
+    'returnExceededLimitFeatures': 'false',
+    'returnCentroid': 'false',
+    'timeReferenceUnknownClient': 'false',
+    'sqlFormat': 'none',
+    'featureEncoding': 'esriDefault',
+    'f': 'geojson'
+
+}
+
 
 
 def site_list():
@@ -48,42 +79,101 @@ def site_list():
     return sites_df
 
 
-def get_location_parameters(site_id):
-    paramoutfields = ['Parameter', 'ParameterLabel', 'ComputationPeriod', 'UnitOfMeasure', 'SensorCode']
+def get_location_parameters(site_ids: Union[str, list]) -> pd.DataFrame:
+    """
+    Function to return available parameters for a site or list of sites.
 
-    payload = {
-        'where': "LocationCode='{0}'".format(site_id),
-        'outFields': ','.join(paramoutfields),
-        'f': FORMAT
-    }
+    Args:
+        site_ids:
+            A string or list of strings representing the site ID's
+
+    Returns:
+        A DataFrame that shows available parameters for the input sites. Structured as a multiindex
+        of (SiteID, parameter_index).
+    """
+
+    paramoutfields = ['LocationCode', 'Parameter', 'ParameterLabel', 'ComputationPeriod', 'UnitOfMeasure', 'SensorCode']
+    if isinstance(site_ids, str):
+        payload = {
+            'where': f"LocationCode='{site_ids}'",
+            'outFields': ','.join(paramoutfields),
+            'f': FORMAT
+        }
+    elif isinstance(site_ids, list):
+        list_join = "','"
+        payload = {
+            'where': f"LocationCode IN ('{list_join.join(site_ids)}')",
+            'outFields': ','.join(paramoutfields),
+            'f': FORMAT
+        }
+    else:
+        raise ValueError("The input site ids are not in a supported format.")
+
     response = requests.get(LOCATIONDATA_URL, params=payload)
     rjson = response.json()
     df_norm = pd.json_normalize(rjson['features'])
+    newlabs = [x.split('.')[1] for x in list(df_norm.columns)]
+    df_norm.columns = newlabs
+    df_norm['Param_Index'] = df_norm[['Parameter', 'ComputationPeriod']].agg('_'.join, axis=1)
+    df_norm = df_norm.set_index(['LocationCode', 'Param_Index']).sort_index()
 
     return df_norm
 
 
-def get_sites_geojson(bbox=[-116.5, 42.5, -103, 49.5]):
+def get_site_locations(site_ids=None,
+                       geometry=None,
+                       site_type=None):
     """
-    Currently extracts all point data for gage locations based on bounding box.
-    :param bbox: list, with bounding box coordinates of order [xmin, ymin, xmax, ymax]
-    :return: requests object
+    Function to get site locations by ID, input geometry, or site type.
+
+    Args:
+        site_ids(str | list):
+            A string or list of strings of site IDs to get locations for.
+
+        geometry(str | Path | gpd.GeoDataFrame):
+            A string or path to a geometry file, or a geopandas GeoDataFrame polygon to extract sites within that
+            area.
+
+        site_type(str | list):
+            A string or list of strings for site type labels:
+                - 'Real-Time'
+                - 'Seasonal'
+                - 'FWP'
+                - 'Discontinued'
+                - 'Reservoir'
+
+    Returns:
+        gpd.GeoDataFrame:
+            A GeoDataFrame of the resulting sites.
     """
-    if bbox is not None:
-        req_url = "https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/0/query?where=&text=&" \
-                  "objectIds=&time=&timeRelation=esriTimeRelationOverlaps&geometry={0}%2C+{1}%2C+{2}%2C+{3}&" \
-                  "geometryType=esriGeometryEnvelope&inSR=4326&spatialRel=esriSpatialRelIntersects&distance=&" \
-                  "units=esriSRUnit_Foot&relationParam=&outFields=LocationCode%2C+LocationName%2C+ObjectID%2C+StatusDesc&returnGeometry=true&" \
-                  "returnTrueCurves=false&maxAllowableOffset=&geometryPrecision=&outSR=4326&havingClause=&" \
-                  "returnIdsOnly=false&returnCountOnly=false&orderByFields=&groupByFieldsForStatistics=&" \
-                  "outStatistics=&returnZ=false&returnM=false&gdbVersion=&historicMoment=&returnDistinctValues=false&" \
-                  "resultOffset=&resultRecordCount=&returnExtentOnly=false&sqlFormat=none&datumTransformation=&" \
-                  "parameterValues=&rangeValues=&quantizationParameters=&featureEncoding=esriDefault&" \
-                  "f=geojson".format(bbox[0], bbox[1], bbox[2], bbox[3])
-    else:
-        print("bounding coordinates required")
-    response = requests.get(req_url)
-    return response
+
+    payload = default_query_params.copy()
+    gdf_return = utilities.geojson_request_to_geodf(LOCS_SPATIAL_URL, payload)
+    fin_gdf = gdf_return
+    if geometry is not None:
+        if isinstance(geometry, (str, Path)):
+            in_geom = gpd.read_file(geometry)
+        elif isinstance(geometry, gpd.GeoDataFrame):
+            in_geom = geometry
+        else:
+            raise ValueError("The input geometry is neither a string path nor a geopandas GeoDataFrame.")
+
+        in_geom = in_geom.to_crs(4326)
+        fin_gdf = fin_gdf.loc[fin_gdf.intersects(in_geom.geometry[0]), :]
+
+    if site_ids is not None:
+        if isinstance(site_ids, str):
+            fin_gdf = fin_gdf.loc[fin_gdf['LocationCode'] == site_ids,:]
+        else:
+            fin_gdf = fin_gdf.loc[fin_gdf['LocationCode'].isin(site_ids),:]
+
+    if site_type is not None:
+        if isinstance(site_type, str):
+            fin_gdf = fin_gdf.loc[fin_gdf['StatusDesc'] == site_ids,:]
+        else:
+            fin_gdf = fin_gdf.loc[fin_gdf['StatusDesc'].isin(site_ids),:]
+
+    return fin_gdf
 
 
 class GetSite(object):
@@ -261,75 +351,81 @@ class GetSite(object):
             #   have loop to get all requests for all time blocks, build DFs, then concat
             if time_qry is None:
                 print("Time Query was not properly set.")
-                pass
+                continue
             else:
                 payload.update(time_qry)
 
-            response = requests.get(TIMESERIES_URL, params=payload)
-            rjson = response.json()
-            new_feat = [d['attributes'] for d in rjson['features']]
-            DF = pd.DataFrame(new_feat)
-            DF['SiteID'] = sites[i]
-            DF['DatasetCode'] = paramCodes[i]
-            DF['DatasetLabel'] = data_labels[i]
+            tot_records, step = utilities.count_records('https://gis.dnrc.mt.gov/arcgis/rest/services/WRD/WMB_StAGE/MapServer/2', payload)
 
-            # TODO - alter all conditionals to deal with duplicates and return Datetime as index
-            if self._data_timestep == 'instant':
-                TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
-                dtind = pd.DatetimeIndex(TSdts)
-                #dts_local = dtind.tz_localize('US/Mountain', ambiguous='infer')
-                dts_local = dtind.tz_localize('etc/GMT+7', ambiguous='infer')
-                #fn_dts = dts_local.tz_convert(get_localzone())
-                #fn_dts.rename('Datetime', inplace=True)
-                #DF.set_index(fn_dts, inplace=True)
-                DF.index = dts_local
-                DF.drop('Timestamp', axis=1, inplace=True)
-                DF.sort_index(inplace=True)
-                DF = DF[~DF.index.duplicated(keep='last')]
-                off = DF.index.values - np.roll(DF.index.values, 1)
-                minoff = pd.to_timedelta(off[1:]).min()
-                DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max(), freq=minoff))
-                DF.index.name = 'Datetime'
-                DF['SiteID'] = DF['SiteID'].ffill()
-                DF['DatasetCode'] = DF['DatasetCode'].ffill()
-                DF['DatasetLabel'] = DF['DatasetLabel'].ffill()
-            elif self._data_timestep == 'daily' and paramCodes[i] in INST_ONLY:
-                TSunxdts = (DF['Timestamp'] / 1000)
-                TSdts = pd.to_datetime(TSunxdts, unit='ms')
-                dtind = pd.DatetimeIndex(TSdts)
-                dts_local = dtind.tz_localize('US/Mountain')
-                fn_dts = dts_local.tz_convert(get_localzone())
-                fn_dts.rename('Datetime', inplace=True)
-                DF.set_index(fn_dts, inplace=True)
-                DF = DF.resample('1D').last()
-                DF['Date'] = DF.index.strftime('%Y-%m-%d')
-                DF.reset_index(inplace=True)
-                DF.drop('Timestamp', axis=1, inplace=True)
-                DF.drop('Datetime', axis=1, inplace=True)
-                DF.sort_values(by='Date', inplace=True)
-                DF.reset_index(drop=True, inplace=True)
-            elif self._data_timestep == 'daily' and paramCodes[i] not in INST_ONLY:
-                TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
-                dtind = pd.DatetimeIndex(TSdts)
-                DF.index = dtind.normalize()
-                DF.drop('Timestamp', axis=1, inplace=True)
-                DF.sort_index(inplace=True)
-                DF = DF[~DF.index.duplicated(keep='last')]
-                DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max(), freq='D'))
-                DF.index.name = 'Date'
-                DF['SiteID'] = DF['SiteID'].ffill()
-                DF['DatasetCode'] = DF['DatasetCode'].ffill()
-                DF['DatasetLabel'] = DF['DatasetLabel'].ffill()
+            if tot_records > 0:
+                response = requests.get(TIMESERIES_URL, params=payload)
+                rjson = response.json()
+                new_feat = [d['attributes'] for d in rjson['features']]
+                DF = pd.DataFrame(new_feat)
+                DF['SiteID'] = sites[i]
+                DF['DatasetCode'] = paramCodes[i]
+                DF['DatasetLabel'] = data_labels[i]
+
+                # TODO - alter all conditionals to deal with duplicates and return Datetime as index
+                if self._data_timestep == 'instant':
+                    TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
+                    dtind = pd.DatetimeIndex(TSdts)
+                    #dts_local = dtind.tz_localize('US/Mountain', ambiguous='infer')
+                    dts_local = dtind.tz_localize('etc/GMT+7', ambiguous='infer')
+                    #fn_dts = dts_local.tz_convert(get_localzone())
+                    #fn_dts.rename('Datetime', inplace=True)
+                    #DF.set_index(fn_dts, inplace=True)
+                    DF.index = dts_local
+                    DF.drop('Timestamp', axis=1, inplace=True)
+                    DF.sort_index(inplace=True)
+                    DF = DF[~DF.index.duplicated(keep='last')]
+                    off = DF.index.values - np.roll(DF.index.values, 1)
+                    minoff = pd.to_timedelta(off[1:]).min()
+                    DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max(), freq=minoff))
+                    DF.index.name = 'Datetime'
+                    DF['SiteID'] = DF['SiteID'].ffill()
+                    DF['DatasetCode'] = DF['DatasetCode'].ffill()
+                    DF['DatasetLabel'] = DF['DatasetLabel'].ffill()
+                elif self._data_timestep == 'daily' and paramCodes[i] in INST_ONLY:
+                    TSunxdts = (DF['Timestamp'] / 1000)
+                    TSdts = pd.to_datetime(TSunxdts, unit='ms')
+                    dtind = pd.DatetimeIndex(TSdts)
+                    dts_local = dtind.tz_localize('US/Mountain')
+                    fn_dts = dts_local.tz_convert(get_localzone())
+                    fn_dts.rename('Datetime', inplace=True)
+                    DF.set_index(fn_dts, inplace=True)
+                    DF = DF.resample('1D').last()
+                    DF['Date'] = DF.index.strftime('%Y-%m-%d')
+                    DF.reset_index(inplace=True)
+                    DF.drop('Timestamp', axis=1, inplace=True)
+                    DF.drop('Datetime', axis=1, inplace=True)
+                    DF.sort_values(by='Date', inplace=True)
+                    DF.reset_index(drop=True, inplace=True)
+                elif self._data_timestep == 'daily' and paramCodes[i] not in INST_ONLY:
+                    TSdts = pd.to_datetime(DF['Timestamp'], unit='ms')
+                    dtind = pd.DatetimeIndex(TSdts)
+                    DF.index = dtind.normalize()
+                    DF.drop('Timestamp', axis=1, inplace=True)
+                    DF.sort_index(inplace=True)
+                    DF = DF[~DF.index.duplicated(keep='last')]
+                    DF = DF.reindex(pd.date_range(DF.index.min(), DF.index.max(), freq='D'))
+                    DF.index.name = 'Date'
+                    DF['SiteID'] = DF['SiteID'].ffill()
+                    DF['DatasetCode'] = DF['DatasetCode'].ffill()
+                    DF['DatasetLabel'] = DF['DatasetLabel'].ffill()
+                else:
+                    print("Timestamps could not be re-formatted.")
+                    pass
+                TSdata_lst.append(DF)
+
             else:
-                print("Timestamps could not be re-formatted.")
-                pass
-            TSdata_lst.append(DF)
+                continue
 
-        TSdata = pd.concat(TSdata_lst)
-        #if self._nt_return == 'recent':
-        #    TSdata = TSdata.iloc[[-1]]
-        #else:
-        #    pass
+        if len(TSdata_lst) > 0:
+            TSdata = pd.concat(TSdata_lst)
+        else:
+            print("No Data returned for the selected time period.")
+            TSdata = pd.DataFrame()
 
         return TSdata
 

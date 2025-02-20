@@ -162,12 +162,13 @@ def build_wrqs_where_query(
             raise ValueError(f"The argument for query parameter {k} is neither string nor list.")
 
         qry_strs.append(qs)
-        if len(qry_strs) == 0:
-            result = None
-        elif len(qry_strs) == 1:
-            result = qry_strs[0]
-        else:
-            result = ' AND '.join(qry_strs)
+
+    if len(qry_strs) == 0:
+        result = None
+    elif len(qry_strs) == 1:
+        result = qry_strs[0]
+    else:
+        result = ' AND '.join(qry_strs)
 
     return result
 
@@ -181,5 +182,6 @@ def geojson_request_to_geodf(query_url, payload):
 
     res_req = requests.get(query_url, params=payload)
     geodf = gpd.GeoDataFrame.from_features(res_req.json()['features'])
+    #geodf = geodf.set_geometry('geometry')
 
     return geodf

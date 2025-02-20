@@ -82,17 +82,20 @@ class GetWaterRights:
             self.in_geom = None
         elif isinstance(geometry, (str, Path)):
             self.in_geom = gpd.read_file(geometry)
+            if len(self.in_geom) > 1:
+                warnings.warn("Input geometry has more than one feature, defaulting to the 1st geometry.",
+                              UserWarning,
+                              stacklevel=2)
+                self.in_geom = self.in_geom.iloc[[0], :]
         elif isinstance(geometry, gpd.GeoDataFrame):
             self.in_geom = geometry
+            if len(self.in_geom) > 1:
+                warnings.warn("Input geometry has more than one feature, defaulting to the 1st geometry.",
+                              UserWarning,
+                              stacklevel=2)
+                self.in_geom = self.in_geom.iloc[[0], :]
         else:
             raise ValueError("The input geometry is not a string path or geopandas GeoDataFrame.")
-
-        if len(self.in_geom) > 1:
-            warnings.warn("Input geometry has more than one feature, defaulting to the 1st geometry.",
-                          UserWarning,
-                          stacklevel=2)
-            self.in_geom = self.in_geom.iloc[[0],:]
-
 
         self.pod = GetWaterRights.get_pods(self._where_query, geometry=self.in_geom)
         self.pou = GetWaterRights.get_pous(self._where_query, geometry=self.in_geom)
