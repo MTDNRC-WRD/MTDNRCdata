@@ -4,6 +4,8 @@ Utility functions used by stage.py
 
 from datetime import datetime, timezone, timedelta
 import pytz
+import requests
+import geopandas as gpd
 
 stage_tz = 'US/Mountain'
 
@@ -105,3 +107,81 @@ def subset_date_range(start, end, interval, max_size=10000):
     for i in range(interval):
         yield (start + diff * i).strftime("%Y%m%d")
     yield end.strftime("%Y%m%d")
+
+def count_records(service_url, query_payload):
+    payload = query_payload.copy()
+    payload.update({"returnCountOnly": 'true'})
+    payload.update({"f": "json"})
+    query_json = requests.get(f"{service_url}/query", params=payload).json()
+    service_json = requests.get(service_url, params={'f': 'json'}).json()
+    tot_records = query_json['count']
+    step = service_json['maxRecordCount']
+
+    return tot_records, step
+
+def build_wrqs_where_query(
+        wr_number=None,
+        basin_code=None,
+        county=None,
+        status=None,
+        purpose=None,
+        wrtype=None
+    ):
+
+    list_join = "','"
+    list_in_query = lambda key, item: f"({key} IN ('{list_join.join(item)}'))"
+    str_query = lambda key, item: f"({key}='{item}')"
+    like_list_join = "%') OR (PURPOSES LIKE '%"
+    purpose_list_q = lambda key, item: f"({key} LIKE '%{like_list_join.join(item)}%')"
+    purpose_str_q = lambda key, item: f"({key} LIKE '%{item}%')"
+
+    query_args = {
+        'WR_NUMBER': wr_number,
+        'BOCA_CD': basin_code,
+        'COUNTY': county,
+        'WR_STATUS': status,
+        'PURPOSES': purpose,
+        'WR_TYPE': wrtype
+    }
+
+    qry_strs = []
+    for k, i in query_args.items():
+        if i is None:
+            continue
+        elif isinstance(i, str):
+            if k == 'PURPOSES':
+                qs = purpose_str_q(k, i)
+            else:
+                qs = str_query(k, i)
+        elif isinstance(i, list):
+            if k == 'PURPOSES':
+                qs = purpose_list_q(k, i)
+            else:
+                qs = list_in_query(k, i)
+        else:
+            raise ValueError(f"The argument for query parameter {k} is neither string nor list.")
+
+        qry_strs.append(qs)
+
+    if len(qry_strs) == 0:
+        result = None
+    elif len(qry_strs) == 1:
+        result = qry_strs[0]
+    else:
+        result = ' AND '.join(qry_strs)
+
+    return result
+
+def geojson_request_to_geodf(query_url, payload):
+    payload = payload.copy()
+    if payload['f'] != 'geojson':
+        payload['f'] = 'geojson'
+
+    if payload['returnGeometry'] != 'true':
+        payload['returnGeometry'] = 'true'
+
+    res_req = requests.get(query_url, params=payload)
+    geodf = gpd.GeoDataFrame.from_features(res_req.json()['features'])
+    #geodf = geodf.set_geometry('geometry')
+
+    return geodf
