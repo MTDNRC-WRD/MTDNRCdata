@@ -9,6 +9,23 @@ import geopandas as gpd
 
 stage_tz = 'US/Mountain'
 
+def aq_datetime_now():
+    t_now = datetime.now(timezone.utc)
+    t_delta = t_now - timedelta(hours=12)
+    t_now = t_now.strftime(f"%Y-%m-%dT%H:%M:%SZ")
+    t_delta = t_delta.strftime(f"%Y-%m-%dT%H:%M:%SZ")
+    return t_now, t_delta
+
+def aq_datetime_formatter(date_str):
+    """formats date string 'yyyy-mm-dd' to AQUARIUS friendly string"""
+    try:
+        ts = datetime.strptime(date_str, "%Y-%m-%d")
+        ts_out = ts.strftime("%Y-%m-%dT%H:%M:%SZ")
+        return ts_out
+
+    except Exception as e:
+        print(f"Error occurred loading date info: {e}")
+
 
 def datetime_to_unix(date_str):
     """
