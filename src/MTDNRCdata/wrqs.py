@@ -11,8 +11,6 @@ To do:
     * Add plotting functionality
 """
 
-import requests
-import urllib
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path

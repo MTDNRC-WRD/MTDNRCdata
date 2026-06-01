@@ -1,6 +1,5 @@
 import requests
 import geopandas as gpd
-import urllib
 
 from MTDNRCdata import utilities
 from MTDNRCdata.wrqs import GetWaterRights

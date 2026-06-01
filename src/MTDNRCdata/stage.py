@@ -16,7 +16,6 @@ import pandas as pd
 import geopandas as gpd
 from tzlocal import get_localzone
 import numpy as np
-import pytz
 from typing import Union
 from pathlib import Path
 
@@ -24,7 +23,6 @@ from MTDNRCdata import utilities
 from config import LOCATIONS_URL, LOCS_SPATIAL_URL
 from config import LOCATIONDATA_URL
 from config import TIMESERIES_URL
-from config import AVAILABLE_DATASETS
 from config import STATUS_TYPES
 from config import INST_ONLY
 from config import LOCATION_FIELDS
@@ -463,15 +461,15 @@ class GetSite(object):
                     time_qry = {'time': '{0}, {1}'.format(strt, end)}
             elif self._querystart is None and self._queryend is not None:
                 strt = 'null'
-                end = int((utilities.offset_unix(utilities.datetime_to_unix(self._queryend)))*1000)
+                end = int((utilities.offset_unix(utilities.datetime_to_unix(self._queryend))) * 1000)
                 time_qry = {'time': '{0}, {1}'.format(strt, end)}
             elif self._querystart is not None and self._queryend is None:
-                strt = int((utilities.offset_unix(utilities.datetime_to_unix(self._querystart)))*1000)
+                strt = int((utilities.offset_unix(utilities.datetime_to_unix(self._querystart))) * 1000)
                 end = 'null'
                 time_qry = {'time': '{0}, {1}'.format(strt, end)}
             else:
-                strt = int((utilities.offset_unix(utilities.datetime_to_unix(self._querystart)))*1000)
-                end = int((utilities.offset_unix(utilities.datetime_to_unix(self._queryend)))*1000)
+                strt = int((utilities.offset_unix(utilities.datetime_to_unix(self._querystart))) * 1000)
+                end = int((utilities.offset_unix(utilities.datetime_to_unix(self._queryend))) * 1000)
                 time_qry = {'time': '{0}, {1}'.format(strt, end)}
         elif self._data_timestep == 'daily':
             if self._querystart is None and self._queryend is None:
@@ -499,15 +497,15 @@ class GetSite(object):
                     time_qry = {'time': '{0}, {1}'.format(strt, end)}
             elif self._querystart is None and self._queryend is not None:
                 strt = 'null'
-                end = int(utilities.date_to_unix_naive(self._queryend)*1000)
+                end = int(utilities.date_to_unix_naive(self._queryend) * 1000)
                 time_qry = {'time': '{0}, {1}'.format(strt, end)}
             elif self._querystart is not None and self._queryend is None:
-                strt = int(utilities.date_to_unix_naive(self._querystart)*1000)
+                strt = int(utilities.date_to_unix_naive(self._querystart) * 1000)
                 end = 'null'
                 time_qry = {'time': '{0}, {1}'.format(strt, end)}
             else:
-                strt = int(utilities.date_to_unix_naive(self._querystart)*1000)
-                end = int(utilities.date_to_unix_naive(self._queryend)*1000)
+                strt = int(utilities.date_to_unix_naive(self._querystart) * 1000)
+                end = int(utilities.date_to_unix_naive(self._queryend) * 1000)
                 time_qry = {'time': '{0}, {1}'.format(strt, end)}
 
         return time_qry

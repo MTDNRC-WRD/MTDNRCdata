@@ -1,7 +1,7 @@
 # Example script to get all daily discharge data for all StAGE stations
 import pandas as pd
 
-from MTDNRCdata.stage import GetSite, site_list, get_location_parameters, get_sites_geojson
+from MTDNRCdata import GetSite, site_list, get_location_parameters, get_sites_geojson
 
 # Use site_list() function to query all available sites on the StAGE Web Interface
 sites = site_list()
